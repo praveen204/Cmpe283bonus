@@ -68,6 +68,9 @@ MODULE_DEVICE_TABLE(x86cpu, vmx_cpu_id);
 static bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
 
+
+static u32 event_counter[1000]={0};
+
 static bool __read_mostly flexpriority_enabled = 1;
 module_param_named(flexpriority, flexpriority_enabled, bool, S_IRUGO);
 
@@ -161,6 +164,11 @@ module_param(ple_window_shrink, int, S_IRUGO);
 static int ple_window_actual_max = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 static int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 module_param(ple_window_max, int, S_IRUGO);
+
+
+
+static unsigned long count_exit[66]={0};// New code added by Praveen & Monisha
+
 
 extern const ulong vmx_return;
 
@@ -2302,6 +2310,8 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 		intr_info |= INTR_TYPE_HARD_EXCEPTION;
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
+	event_counter[vcpu->vcpu_id]++;
+	printk("Number of the events injected  for VCPU %d : %d \n",vcpu->vcpu_id,event_counter[vcpu->vcpu_id]);
 }
 
 static bool vmx_rdtscp_supported(void)
@@ -4953,6 +4963,8 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	setup_msrs(vmx);
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);  /* 22.2.1 */
+	event_counter[vcpu->vcpu_id]++;
+	printk("Number of the events injected  for VCPU %d : %d \n",vcpu->vcpu_id,event_counter[vcpu->vcpu_id]);
 
 	if (cpu_has_vmx_tpr_shadow() && !init_event) {
 		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
@@ -5056,6 +5068,8 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 	} else
 		intr |= INTR_TYPE_EXT_INTR;
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr);
+	event_counter[vcpu->vcpu_id]++;
+	printk("Number of the events injected  for VCPU %d : %d \n",vcpu->vcpu_id,event_counter[vcpu->vcpu_id]);
 }
 
 static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
@@ -5087,6 +5101,8 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK | NMI_VECTOR);
+	event_counter[vcpu->vcpu_id]++;
+	printk("Number of the events injected  for VCPU %d : %d \n",vcpu->vcpu_id,event_counter[vcpu->vcpu_id]);
 }
 
 static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
@@ -8071,6 +8087,168 @@ static void dump_vmcs(void)
 		       vmcs_read16(VIRTUAL_PROCESSOR_ID));
 }
 
+
+/*Function added for printing exit type by Praveen & monisha*/
+static void print_exit_type(int exitReasonCode)
+{
+    switch(exitReasonCode)
+    {
+        case  EXIT_REASON_EXCEPTION_NMI:
+            printk("EXCEPTION_NMI" );
+            break;
+        case  EXIT_REASON_EXTERNAL_INTERRUPT:
+            printk("EXTERNAL_INTERRUPT" );
+            break;
+        case  EXIT_REASON_TRIPLE_FAULT:
+            printk(  "TRIPLE_FAULT" );
+            break;
+        case  EXIT_REASON_PENDING_INTERRUPT:
+            printk( "PENDING_INTERRUPT" );
+            break;
+        case  EXIT_REASON_NMI_WINDOW:
+            printk("NMI_WINDOW" );
+            break;
+        case  EXIT_REASON_TASK_SWITCH:
+            printk("TASK_SWITCH" );
+            break;
+        case  EXIT_REASON_CPUID:
+            printk( "CPUID" );
+            break;
+        case  EXIT_REASON_HLT:
+            printk("HLT" );
+            break;
+        case  EXIT_REASON_INVLPG:
+            printk("INVLPG" );
+            break;
+        case  EXIT_REASON_RDPMC:
+            printk( "RDPMC" );
+            break;
+        case  EXIT_REASON_RDTSC:
+            printk( "RDTSC" );
+            break;
+        case  EXIT_REASON_VMCALL:
+            printk("VMCALL" );
+            break;
+        case  EXIT_REASON_VMCLEAR:
+            printk("VMCLEAR" );
+            break;
+        case  EXIT_REASON_VMLAUNCH:
+            printk(  "VMLAUNCH" );
+            break;
+        case  EXIT_REASON_VMPTRLD:
+            printk("VMPTRLD" );
+            break;
+        case  EXIT_REASON_VMPTRST:
+            printk("VMPTRST" );
+            break;
+        case  EXIT_REASON_VMREAD:
+            printk("VMREAD" );
+            break;
+        case  EXIT_REASON_VMRESUME:
+            printk(  "VMRESUME" );
+            break;
+        case  EXIT_REASON_VMWRITE:
+            printk("VMWRITE" );
+            break;
+        case  EXIT_REASON_VMOFF:
+            printk( "VMOFF" );
+            break;
+        case  EXIT_REASON_VMON:
+            printk(  "VMON" );
+            break;
+        case  EXIT_REASON_CR_ACCESS:
+            printk( "CR_ACCESS" );
+            break;
+        case  EXIT_REASON_DR_ACCESS:
+            printk( "DR_ACCESS" );
+            break;
+        case  EXIT_REASON_IO_INSTRUCTION:
+            printk("IO_INSTRUCTION" );
+            break;
+        case  EXIT_REASON_MSR_READ:
+            printk(  "MSR_READ" );
+            break;
+        case  EXIT_REASON_MSR_WRITE:
+            printk( "MSR_WRITE" );
+            break;
+        case  EXIT_REASON_MWAIT_INSTRUCTION:
+            printk( "MWAIT_INSTRUCTION" );
+            break;
+        case  EXIT_REASON_MONITOR_TRAP_FLAG:
+            printk( "MONITOR_TRAP_FLAG" );
+            break;
+        case  EXIT_REASON_MONITOR_INSTRUCTION:
+            printk("MONITOR_INSTRUCTION" );
+            break;
+        case  EXIT_REASON_PAUSE_INSTRUCTION:
+            printk( "PAUSE_INSTRUCTION" );
+            break;
+        case  EXIT_REASON_MCE_DURING_VMENTRY:
+            printk("MCE_DURING_VMENTRY" );
+            break;
+        case  EXIT_REASON_TPR_BELOW_THRESHOLD:
+            printk("TPR_BELOW_THRESHOLD" );
+            break;
+        case  EXIT_REASON_APIC_ACCESS:
+            printk("APIC_ACCESS" );
+            break;
+        case  EXIT_REASON_EPT_VIOLATION:
+            printk( "EPT_VIOLATION" );
+            break;
+        case  EXIT_REASON_EPT_MISCONFIG:
+            printk( "EPT_MISCONFIG" );
+            break;
+        case  EXIT_REASON_INVEPT:
+            printk("INVEPT" );
+            break;
+        case  EXIT_REASON_PREEMPTION_TIMER:
+            printk(  "PREEMPTION_TIMER" );
+            break;
+        case  EXIT_REASON_WBINVD:
+            printk("WBINVD" );
+            break;
+        case  EXIT_REASON_APIC_WRITE:
+            printk("APIC_WRITE" );
+            break;
+        case  EXIT_REASON_EOI_INDUCED:
+            printk("EOI_INDUCED" );
+            break;
+        case  EXIT_REASON_INVALID_STATE:
+            printk( "INVALID_STATE" );
+            break;
+        case  EXIT_REASON_MSR_LOAD_FAIL:
+            printk( "MSR_LOAD_FAIL" );
+            break;
+        case  EXIT_REASON_INVD:
+            printk(  "INVD" );
+            break;
+        case  EXIT_REASON_INVVPID:
+            printk("INVVPID" );
+            break;
+        case  EXIT_REASON_INVPCID:
+            printk("INVPCID" );
+            break;
+        case  EXIT_REASON_XSAVES:
+            printk("XSAVES" );
+            break;
+        case  EXIT_REASON_XRSTORS:
+            printk("XRSTORS" );
+            break;
+        case  EXIT_REASON_PCOMMIT:
+            printk("PCOMMIT" );
+        default:
+            printk("Unknown exit value ordinal: %d",exitReasonCode);
+    }
+    return;
+}
+
+
+
+
+
+
+
+
 /*
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
@@ -8080,7 +8258,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
-
+	
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
 
 	/*
@@ -8161,7 +8339,22 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 
 	if (exit_reason < kvm_vmx_max_exit_handlers
 	    && kvm_vmx_exit_handlers[exit_reason])
+		{
+			//New code added by Praveen & Monisha
+			count_exit[exit_reason]++;
+		
+			printk(KERN_INFO "EXIT REASON code: %u\n",exit_reason);
+		        printk("Type of exit:");
+			print_exit_type(exit_reason);
+			printk(KERN_INFO "Number of exits for");
+			print_exit_type(exit_reason);
+			printk(KERN_INFO ": %d\n",count_exit[exit_reason]);
+	
+		
+
+
 		return kvm_vmx_exit_handlers[exit_reason](vcpu);
+		}
 	else {
 		WARN_ONCE(1, "vmx: unexpected exit reason 0x%x\n", exit_reason);
 		kvm_queue_exception(vcpu, UD_VECTOR);
@@ -8514,6 +8707,8 @@ static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
 				  VM_ENTRY_EXCEPTION_ERROR_CODE);
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);
+	event_counter[vcpu->vcpu_id]++;
+	printk("Number of the events injected  for VCPU %d : %d \n",vcpu->vcpu_id,event_counter[vcpu->vcpu_id]);
 }
 
 static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
@@ -9541,6 +9736,8 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 		vmcs12->vm_entry_intr_info_field);
+	event_counter[vcpu->vcpu_id]++;
+	printk("Number of the events injected  for VCPU %d : %d \n",vcpu->vcpu_id,event_counter[vcpu->vcpu_id]);
 	vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE,
 		vmcs12->vm_entry_exception_error_code);
 	vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
